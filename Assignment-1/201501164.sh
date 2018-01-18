@@ -3,7 +3,7 @@ echo Initializing minisql engine
 # bash trap is taken care of i.e. bash trap executed when CTRL-C is pressed
 
 trap bashtrap INT
-
+set -f
 while [ 1 ];
 do
 
@@ -28,7 +28,7 @@ do
 
 	if [[ $comm == "clear" ]]
 	then
-		command $comm
+		eval $comm
 		continue
 	fi
 
@@ -40,16 +40,17 @@ do
 		ARRAY[$count]=$word
 		((count++))
 	done
-	if [[ $count -eq 3 ]]
+	if [[ $count -ge 3 ]]
 	then
 		if [[ ${ARRAY[0]} == 'python' &&  ${ARRAY[1]} == 'engine.py' ]]
 		then
-			command $comm
+			eval $comm
 		else
-			echo 'Error :- Command should be of form :- python engine.py "command"'
+			echo 'Error :- Command should be of form :- python engine.py "statement"'
 		fi
 
 	else
-		echo 'Error :- Command should be of form :- python engine.py "command"'
+		echo 'Error :- Command should be of form :- python engine.py "statement"'
 	fi
 done
+set +f
