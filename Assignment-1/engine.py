@@ -53,10 +53,10 @@ def load_metadata(filename):
 
         # Load Metadata file
 
-attributes = load_metadata(database_folder+'metadata.txt')
+tinfo = load_metadata(database_folder+'metadata.txt')
 # print attributes
 
-        # Solve queries
+        # parse queries
 
 def parse_query(query):
     grp = ""
@@ -102,37 +102,47 @@ def parse_query(query):
     #     req["where"] = req["where"].split('or')
 
     print req
-    return
-
-def parse_query2(query):
-    term= ""
-    req = {}
-    que = query.split(" ")
-    for q in que:
-        if q== "select" or q=="from" or q=="where":
-            if q in req.keys():
-                print "Error:- Improper syntax" , q , "already given"
-                exit(0)
-            req[q]=[]
-            term = q
-        else:
-            if term=="":
-                print "No select term present"
-                exit(0)
-            else:
-                req[term].append(q)
-
-    if "from" not in req.keys():
-        print "Error:- From not used, ie. no tables included"
-        exit(0)
-    if "select" not in req.keys():
-        print "Error:- select not used, ie. no tables included"
-        exit(0)
-    # print req
-
     return req
 
+def load_tables(tables,tinfo):
+    data = {}
+    for table in tables:
+        if table in tinfo.keys():
+            data[table]={}
+            for val in tinfo[table]:
+                data[table][val] = []
+        else:
+            print "Error:- This", table,"Table not present"
+            exit(0)
+    for table in tables:
+        filename = table + ".csv"
+        try:
+            f = open(filename,'r')
+        except:
+            print "Metadata file does not exist"
+            exit(0)
+        lines = f.readlines()
+
+        for line in lines:
+            line = line.split("\r\n")[0]
+            # line = line[0]
+            vals = line.split(',')
+            count = 0
+            for val in vals:
+                data[table][tinfo[table][count]].append(int(val))
+                count = count+1
+    print data
+    return data
+
+
+def process_query(req):
+    tables = req["from"]
+    data = load_tables(tables,tinfo)
+
+
+
 for query in queries:
+    if query == "":
+        continue
     output = parse_query(query)
-    # process_query(output)
-    # parse_query2(query)
+    process_query(output)
