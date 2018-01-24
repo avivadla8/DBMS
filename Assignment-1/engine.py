@@ -6,7 +6,6 @@ import os
         # Enter the database folder
 database_folder = ''
 
-queries = sys.argv[1].split(';')
 
 def load_metadata(filename):
     attri = list()
@@ -50,10 +49,6 @@ def load_metadata(filename):
     return tinfo
 
 
-
-        # Load Metadata file
-
-tinfo = load_metadata(database_folder+'metadata.txt')
 # print attributes
 
         # parse queries
@@ -101,7 +96,7 @@ def parse_query(query):
     #     req["where"] = req["where"].split('and')
     #     req["where"] = req["where"].split('or')
 
-    print req
+    # print req
     return req
 
 def load_tables(tables,tinfo):
@@ -112,7 +107,7 @@ def load_tables(tables,tinfo):
             for val in tinfo[table]:
                 data[table][val] = []
         else:
-            print "Error:- This", table,"Table not present"
+            print "Error:- This Table ", table," is not present"
             exit(0)
     for table in tables:
         filename = table + ".csv"
@@ -131,18 +126,113 @@ def load_tables(tables,tinfo):
             for val in vals:
                 data[table][tinfo[table][count]].append(int(val))
                 count = count+1
-    print data
+    # print data
     return data
 
+def rec(project,data,tables,c_table,tinfo,counter):
+    if(len(tables)==c_table):
+        for table in tables:
+            for val in tinfo[table]:
+                project[table+'.'+val].append(data[table][val][counter[table]])
+        return project
 
-def process_query(req):
+    table = tables[c_table]
+
+    for val in tinfo[table]:
+        temp = len(data[table][val])
+
+    for i in range(0,temp):
+        counter[table] = i
+        project = rec(project,data,tables,c_table+1,tinfo,counter)
+
+    return project
+
+
+def combine_tables(data,tables,tinfo):
+    project = {}
+    counter = {}
+
+    for table in tables:
+        for val in tinfo[table]:
+            project[table+'.'+val] = []
+        counter[table] = 0
+
+    project = rec(project,data,tables,0,tinfo,counter)
+
+    # print project
+    return project
+
+def show_output(req,joined_tables,tinfo,tables):
+    cols = req["select"]
+    list_out = []
+    for col in cols:
+        if col=='*':
+            for table in tables:
+                for val in tinfo[table]:
+                    list_out.append(table+'.'+val)
+        else:
+            if len(col.split('.'))==1:
+                temp = ""
+                flag = 0
+                for table in tables:
+                    if col in tinfo[table]:
+                        flag=flag+1
+                        temp = table
+                if(flag==0 or flag>1):
+                    print "Error :- This column", col, "is present in Multiple tables,please specify properly"
+                else:
+                    list_out.append(temp+'.'+col)
+            else:
+                if col in joined_tables.keys():
+                    list_out.append(col)
+    # print list_out
+    count = 0
+    temp = ""
+    for val in list_out:
+        if count==0:
+            temp = val
+        else:
+            temp = temp + ','+val
+        count = count+1
+    print temp
+
+    name = tables[0]+'.'+tinfo[tables[0]][0]
+    length = len(joined_tables[name])
+    for i in range(0,length):
+        temp = ""
+        count = 0
+        for val in list_out:
+            if count == 0:
+                temp = str(joined_tables[val][i])
+            else:
+                temp = temp + ',' + str(joined_tables[val][i])
+            count = count+1
+        print temp
+
+    return
+
+
+
+def process_query(req,tinfo):
     tables = req["from"]
     data = load_tables(tables,tinfo)
+    joined_tables = combine_tables(data,tables,tinfo)
+    show_output(req,joined_tables,tinfo,tables)
 
+    return
 
+queries = sys.argv[1].split(';')
+
+if len(queries)==1:
+    print "Error :- Semicolon should be present"
+    exit(0)
+
+        # Load Metadata file
+
+tinfo = load_metadata(database_folder+'metadata.txt')
 
 for query in queries:
     if query == "":
         continue
     output = parse_query(query)
-    process_query(output)
+    process_query(output,tinfo)
