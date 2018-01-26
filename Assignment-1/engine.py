@@ -2,10 +2,12 @@ import csv
 import numpy
 import sys
 import os
+import time
 
         # Enter the database folder
 database_folder = ''
-
+print_length=False
+print_time = False
 
 def load_metadata(filename):
     attri = list()
@@ -48,8 +50,6 @@ def load_metadata(filename):
                     attri = attri + [temp]
     return tinfo
 
-
-# print attributes
 
         # parse queries
 
@@ -107,14 +107,14 @@ def load_tables(tables,tinfo):
             for val in tinfo[table]:
                 data[table][val] = []
         else:
-            print "Error:- This Table ", table," is not present"
+            print "Error:- ", table," is not present in the database"
             exit(0)
     for table in tables:
         filename = table + ".csv"
         try:
             f = open(filename,'r')
         except:
-            print "Metadata file does not exist"
+            print "Error:- ", table," is not present in the database"
             exit(0)
         lines = f.readlines()
 
@@ -162,52 +162,201 @@ def combine_tables(data,tables,tinfo):
     # print project
     return project
 
+
+
+def apply_constraints(req,joined_tables,tinfo,tables):
+    return joined_tables
+
+def apply_aggregate(joined_tables,oper,val,length):
+    output = 0
+    for i in range(0,length):
+        if i == 0:
+            output = joined_tables[val][i]
+        else:
+            if oper == 'min':
+                output = min(output,joined_tables[val][i])
+            elif oper == 'max':
+                output = max(output,joined_tables[val][i])
+            elif oper == 'sum':
+                output = output + joined_tables[val][i]
+            elif oper == 'average':
+                output = output + joined_tables[val][i]
+    if oper == 'average':
+        output = (output*1.0)/length
+
+    return output
+
+def extract_col(req,joined_tables,tinfo,tables,list_out,col):
+    if len(col.split('('))==2 and col.split('(')[0]=='':
+        col = col.split('(')[1]
+        col = col.split(')')[0]
+    elif(len(col.split('('))==2):
+        print "Error:- ",col," is not according to syntax"
+        exit(0)
+
+    if len(col.split('.'))==1:
+        temp = ""
+        flag = 0
+        for table in tables:
+            if col in tinfo[table]:
+                flag=flag+1
+                temp = table
+        if(flag==0):
+            print "Error :- '", col, "' is not present in the given list of tables"
+            exit(0)
+        elif(flag>1):
+            print "Error :- '", col, "' is present in Multiple tables,please specify properly"
+            exit(0)
+        else:
+            list_out.append(temp+'.'+col)
+            col = temp+'.'+col
+    else:
+        if col in joined_tables.keys():
+            list_out.append(col)
+        else:
+            print "Error :- '", col, "' is not present in the given list of tables"
+            exit(0)
+
+    return list_out,col
+
 def show_output(req,joined_tables,tinfo,tables):
     cols = req["select"]
     list_out = []
+    list_distinct = []
+    list_aggre = {}
+    list_aggre['max']=[]
+    list_aggre['min']=[]
+    list_aggre['sum']=[]
+    list_aggre['average']=[]
+
+    flag_main = -1
     for col in cols:
+        if col=="":
+            continue
         if col=='*':
             for table in tables:
                 for val in tinfo[table]:
                     list_out.append(table+'.'+val)
-        else:
-            if len(col.split('.'))==1:
-                temp = ""
-                flag = 0
-                for table in tables:
-                    if col in tinfo[table]:
-                        flag=flag+1
-                        temp = table
-                if(flag==0 or flag>1):
-                    print "Error :- This column", col, "is present in Multiple tables,please specify properly"
-                else:
-                    list_out.append(temp+'.'+col)
-            else:
-                if col in joined_tables.keys():
-                    list_out.append(col)
-    # print list_out
-    count = 0
-    temp = ""
-    for val in list_out:
-        if count==0:
-            temp = val
-        else:
-            temp = temp + ','+val
-        count = count+1
-    print temp
+        elif(len(col.split('max'))==2 or len(col.split('min'))==2 or len(col.split('sum'))==2 or len(col.split('average'))==2):
+            if(flag_main==0):
+                print "Error:- In Aggregated query, select list also contains non-aggregated columns"
+                exit(0)
 
-    name = tables[0]+'.'+tinfo[tables[0]][0]
-    length = len(joined_tables[name])
-    for i in range(0,length):
+            if(len(col.split('max'))==2):
+                col = col.split('max')[1]
+                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                list_aggre['max'].append(col)
+            elif(len(col.split('min'))==2):
+                col = col.split('min')[1]
+                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                list_aggre['min'].append(col)
+            elif(len(col.split('sum'))==2):
+                col = col.split('sum')[1]
+                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                list_aggre['sum'].append(col)
+            elif(len(col.split('average'))==2):
+                col = col.split('average')[1]
+                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                list_aggre['average'].append(col)
+            else:
+                print "Error:- Improper usage of Aggregate query"
+                exit(0)
+            flag_main=1
+        elif(len(col.split('distinct'))==2):
+            col = col.split('distinct')[1]
+            if(flag_main==1):
+                print "Error:- In Aggregated query, select list contains non-aggregated column -- ", col
+                exit(0)
+            elif(flag_main==2):
+                print "Error:- Multiple distinct can't be used"
+                exit(0)
+
+            list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+            list_distinct.append(col)
+            flag_main = 2
+        else:
+
+            if flag_main==1:
+                print "Error:- In Aggregated query, select list contains non-aggregated column -- ", col
+                exit(0)
+            if(flag_main==-1):
+                flag_main=0
+            list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+
+
+    # print list_out
+    if list_out==[]:
+        print "Warning:- No select columns included"
+        exit(0)
+
+    joined_tables = apply_constraints(req,joined_tables,tinfo,tables)
+
+    if flag_main==0 or flag_main==2:
+        dist_attri=""
+        dist_attri_list= []
+        if flag_main==2:
+            dist_attri = list_distinct[0]
+        count = 0
+        temp = ""
+        for val in list_out:
+            if count==0:
+                temp = val
+            else:
+                temp = temp + ','+val
+            count = count+1
+        print temp
+
+        name = tables[0]+'.'+tinfo[tables[0]][0]
+        length = len(joined_tables[name])
+        for i in range(0,length):
+            flag=0
+            temp = ""
+            count = 0
+            for val in list_out:
+                if flag_main==2 and dist_attri==val:
+                    if joined_tables[val][i] not in dist_attri_list:
+                        dist_attri_list.append(joined_tables[val][i])
+                    else:
+                        flag = 1 
+                if count == 0:
+                    temp = str(joined_tables[val][i])
+                else:
+                    temp = temp + ',' + str(joined_tables[val][i])
+                count = count+1
+            if flag==0:
+                print temp
+
+    elif(flag_main==1):
+        count = 0
+        temp = ""
+        for val in list_out:
+            for oper in list_aggre.keys():
+                if val in list_aggre[oper]:
+                    val = oper +'('+val + ')'
+                    if count==0:
+                        temp = val
+                    else:
+                        temp = temp + ','+val
+                    count = count+1
+        print temp
+
+        name = tables[0]+'.'+tinfo[tables[0]][0]
+        length = len(joined_tables[name])
         temp = ""
         count = 0
         for val in list_out:
-            if count == 0:
-                temp = str(joined_tables[val][i])
-            else:
-                temp = temp + ',' + str(joined_tables[val][i])
-            count = count+1
+            for oper in list_aggre.keys():
+                if val in list_aggre[oper]:
+                    output = apply_aggregate(joined_tables,oper,val,length)
+                    if count==0:
+                        temp = str(output)
+                    else:
+                        temp = temp + ',' + str(output)
+                    count = count + 1
         print temp
+    if(print_length):
+        print "\n",length,"Rows in set"
+
 
     return
 
@@ -215,6 +364,20 @@ def show_output(req,joined_tables,tinfo,tables):
 
 def process_query(req,tinfo):
     tables = req["from"]
+    length = len(tables)
+    flag=0
+    for i in range(0,length):
+        for j in range(i+1,length):
+            if tables[i]==tables[j]:
+                flag=1
+                break
+        if flag:
+            break
+
+    if(flag==1):
+        print "Error:-table names should be unique"
+        exit(0)
+
     data = load_tables(tables,tinfo)
     joined_tables = combine_tables(data,tables,tinfo)
     show_output(req,joined_tables,tinfo,tables)
@@ -223,8 +386,8 @@ def process_query(req,tinfo):
 
 queries = sys.argv[1].split(';')
 
-if len(queries)==1:
-    print "Error :- Semicolon should be present"
+if len(queries)==1 or queries[len(queries)-1]!="":
+    print "Error :- Semicolon should be present at the end"
     exit(0)
 
         # Load Metadata file
@@ -234,5 +397,9 @@ tinfo = load_metadata(database_folder+'metadata.txt')
 for query in queries:
     if query == "":
         continue
+    start = time.time()
     output = parse_query(query)
     process_query(output,tinfo)
+    end = time.time()
+    if(print_time):
+        print "Time taken:- ",end-start,"\n"

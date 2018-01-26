@@ -20,7 +20,7 @@ do
 		continue
 	fi
 
-	if [[ $comm == "exit" ]]
+	if [[ $comm == "exit" || $comm == "exit;" ]]
 	then
 		echo Bye
 		break
