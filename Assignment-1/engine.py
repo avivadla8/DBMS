@@ -6,8 +6,17 @@ import time
 
         # Enter the database folder
 database_folder = ''
-print_length=False
-print_time = False
+flag_print_extra = False
+flag_print_output_col = True
+flag_print_output_data = True
+if flag_print_extra:
+    flag_print_length=True
+    flag_print_time = True
+else:
+    flag_print_length=False
+    flag_print_time = False
+
+
 
 def load_metadata(filename):
     attri = list()
@@ -162,11 +171,6 @@ def combine_tables(data,tables,tinfo):
     # print project
     return project
 
-
-
-def apply_constraints(req,joined_tables,tinfo,tables):
-    return joined_tables
-
 def apply_aggregate(joined_tables,oper,val,length):
     output = 0
     for i in range(0,length):
@@ -186,7 +190,7 @@ def apply_aggregate(joined_tables,oper,val,length):
 
     return output
 
-def extract_col(req,joined_tables,tinfo,tables,list_out,col):
+def extract_col(req,joined_tables,tinfo,tables,col):
     if len(col.split('('))==2 and col.split('(')[0]=='':
         col = col.split('(')[1]
         col = col.split(')')[0]
@@ -208,16 +212,132 @@ def extract_col(req,joined_tables,tinfo,tables,list_out,col):
             print "Error :- '", col, "' is present in Multiple tables,please specify properly"
             exit(0)
         else:
-            list_out.append(temp+'.'+col)
             col = temp+'.'+col
     else:
         if col in joined_tables.keys():
-            list_out.append(col)
+            col = col
         else:
             print "Error :- '", col, "' is not present in the given list of tables"
             exit(0)
 
-    return list_out,col
+    return col
+
+
+def apply_constraints(req,joined_tables,tinfo,tables):
+    duplicate_out = []
+    if "where" not in req.keys():
+        return joined_tables,duplicate_out
+
+
+    parts  = req["where"]
+    list_oper = []
+    list_words = []
+    parts = parts.split("and")
+    count = 0
+    length = len(parts)
+    for part in parts:
+        if len(part.split("or"))>=2:
+            part = part.split("or")
+            length2 = len(part)
+            count2 = 0
+            for par in part:
+                list_oper.append(par)
+                if(count2!=length2-1):
+                    list_words.append("or")
+                count2=count2+1
+            if(count!=length-1):
+                list_words.append("and")
+        else:
+            list_oper.append(part)
+            if(count!=length-1):
+                list_words.append("and")
+        count = count+1
+
+    name = tables[0]+'.'+tinfo[tables[0]][0]
+    length = len(joined_tables[name])
+    project = {}
+    poi=0
+
+    for table in tables:
+        for val in tinfo[table]:
+            project[table+'.'+val] = []
+
+    for i in range(0,length):
+        count = 0
+        count2 = 0
+        ans = True
+        val = True
+        for oper in list_oper:
+            temp = oper
+            func = ""
+            if(len(oper.split("="))==2):
+                if(len(oper.split(">="))==2):
+                    temp = temp.split(">=")
+                    func = ">="
+                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                    val = int(joined_tables[col1][i]) >= int(joined_tables[col2][i])
+                elif(len(oper.split("<="))==2):
+                    temp = temp.split("<=")
+                    func = "<="
+                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                    val = int(joined_tables[col1][i]) <= int(joined_tables[col2][i])
+                elif(len(oper.split("!="))==2):
+                    temp = temp.split("!=")
+                    func = "!="
+                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                    val = int(joined_tables[col1][i]) != int(joined_tables[col2][i])
+                else:
+                    temp = temp.split("=")
+                    func = "=="
+                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                    if(col1.split('.')[0]!=col2.split('.')):
+                        if col2 not in duplicate_out:
+                            duplicate_out.append(col2)
+                    val = int(joined_tables[col1][i]) == int(joined_tables[col2][i])
+            elif(len(oper.split(">"))==2):
+                temp = temp.split(">")
+                func = ">"
+                col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                val = int(joined_tables[col1][i]) > int(joined_tables[col2][i])
+            elif(len(oper.split("<"))==2):
+                temp = temp.split("<")
+                func = "<"
+                col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+                col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+                val = int(joined_tables[col1][i]) < int(joined_tables[col2][i])
+            else:
+                print "Error:- Invalid Operation",temp
+                exit(0)
+
+            if(count==0):
+                ans = val
+                count=count+1
+            else:
+                if list_words[count2] == "and":
+                    ans = ans and val
+                elif list_words[count2]=="or":
+                    ans = ans or val
+                else:
+                    print "Error:- Invalid Operation",temp
+                    exit(0)
+                count2 = count2+1
+                count = count+1
+        # print ans
+        if ans==True:
+            for key in joined_tables.keys():
+                project[key].append(joined_tables[key][i])
+            poi+=1
+
+    # print list_oper
+    # print list_words
+    # print duplicate_out
+    return project,duplicate_out
+
 
 def show_output(req,joined_tables,tinfo,tables):
     cols = req["select"]
@@ -234,6 +354,7 @@ def show_output(req,joined_tables,tinfo,tables):
         if col=="":
             continue
         if col=='*':
+            flag_main=0
             for table in tables:
                 for val in tinfo[table]:
                     list_out.append(table+'.'+val)
@@ -244,19 +365,23 @@ def show_output(req,joined_tables,tinfo,tables):
 
             if(len(col.split('max'))==2):
                 col = col.split('max')[1]
-                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                col = extract_col(req,joined_tables,tinfo,tables,col)
+                list_out.append(col)
                 list_aggre['max'].append(col)
             elif(len(col.split('min'))==2):
                 col = col.split('min')[1]
-                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                col = extract_col(req,joined_tables,tinfo,tables,col)
+                list_out.append(col)
                 list_aggre['min'].append(col)
             elif(len(col.split('sum'))==2):
                 col = col.split('sum')[1]
-                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                col = extract_col(req,joined_tables,tinfo,tables,col)
+                list_out.append(col)
                 list_aggre['sum'].append(col)
             elif(len(col.split('average'))==2):
                 col = col.split('average')[1]
-                list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+                col = extract_col(req,joined_tables,tinfo,tables,col)
+                list_out.append(col)
                 list_aggre['average'].append(col)
             else:
                 print "Error:- Improper usage of Aggregate query"
@@ -271,7 +396,8 @@ def show_output(req,joined_tables,tinfo,tables):
                 print "Error:- Multiple distinct can't be used"
                 exit(0)
 
-            list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+            col = extract_col(req,joined_tables,tinfo,tables,col)
+            list_out.append(col)
             list_distinct.append(col)
             flag_main = 2
         else:
@@ -281,7 +407,8 @@ def show_output(req,joined_tables,tinfo,tables):
                 exit(0)
             if(flag_main==-1):
                 flag_main=0
-            list_out,col = extract_col(req,joined_tables,tinfo,tables,list_out,col)
+            col = extract_col(req,joined_tables,tinfo,tables,col)
+            list_out.append(col)
 
 
     # print list_out
@@ -289,7 +416,12 @@ def show_output(req,joined_tables,tinfo,tables):
         print "Warning:- No select columns included"
         exit(0)
 
-    joined_tables = apply_constraints(req,joined_tables,tinfo,tables)
+    joined_tables,duplicate_out = apply_constraints(req,joined_tables,tinfo,tables)
+
+    for col in duplicate_out:
+        while col in list_out:
+            list_out.remove(col)
+    # print joined_tables
 
     if flag_main==0 or flag_main==2:
         dist_attri=""
@@ -304,7 +436,8 @@ def show_output(req,joined_tables,tinfo,tables):
             else:
                 temp = temp + ','+val
             count = count+1
-        print temp
+        if(flag_print_output_col):
+            print temp
 
         name = tables[0]+'.'+tinfo[tables[0]][0]
         length = len(joined_tables[name])
@@ -324,7 +457,8 @@ def show_output(req,joined_tables,tinfo,tables):
                     temp = temp + ',' + str(joined_tables[val][i])
                 count = count+1
             if flag==0:
-                print temp
+                if(flag_print_output_data):
+                    print temp
 
     elif(flag_main==1):
         count = 0
@@ -338,7 +472,8 @@ def show_output(req,joined_tables,tinfo,tables):
                     else:
                         temp = temp + ','+val
                     count = count+1
-        print temp
+        if(flag_print_output_col):
+            print temp
 
         name = tables[0]+'.'+tinfo[tables[0]][0]
         length = len(joined_tables[name])
@@ -353,14 +488,13 @@ def show_output(req,joined_tables,tinfo,tables):
                     else:
                         temp = temp + ',' + str(output)
                     count = count + 1
-        print temp
-    if(print_length):
+        if(flag_print_output_data):
+            print temp
+    if(flag_print_length):
         print "\n",length,"Rows in set"
 
 
     return
-
-
 
 def process_query(req,tinfo):
     tables = req["from"]
@@ -384,6 +518,10 @@ def process_query(req,tinfo):
 
     return
 
+if(len(sys.argv)>2):
+    print "Error:- Invalid command input"
+    print 'Command should be of form python engine.py "statement"'
+    exit(0)
 queries = sys.argv[1].split(';')
 
 if len(queries)==1 or queries[len(queries)-1]!="":
@@ -401,5 +539,5 @@ for query in queries:
     output = parse_query(query)
     process_query(output,tinfo)
     end = time.time()
-    if(print_time):
+    if(flag_print_time):
         print "Time taken:- ",end-start,"\n"
