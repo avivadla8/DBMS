@@ -183,20 +183,31 @@ def apply_aggregate(joined_tables,oper,val,length):
                 output = max(output,joined_tables[val][i])
             elif oper == 'sum':
                 output = output + joined_tables[val][i]
-            elif oper == 'average':
+            elif oper == 'avg':
                 output = output + joined_tables[val][i]
-    if oper == 'average':
+            elif oper=='count':
+                output = output+1
+    if oper == 'avg':
         output = (output*1.0)/length
+        output = round(output,2)
 
     return output
 
 def extract_col(req,joined_tables,tinfo,tables,col):
-    if len(col.split('('))==2 and col.split('(')[0]=='':
-        col = col.split('(')[1]
-        col = col.split(')')[0]
-    elif(len(col.split('('))==2):
-        print "Error:- ",col," is not according to syntax"
-        exit(0)
+    col = col.split('(')
+    col_final = ""
+    for c in col:
+        if c !="":
+            col_final = c
+            break
+    col = col_final
+    col = col.split(')')
+    for c in col:
+        if c !="":
+            col_final = c
+            break
+
+    col= col_final
 
     if len(col.split('.'))==1:
         temp = ""
@@ -222,6 +233,85 @@ def extract_col(req,joined_tables,tinfo,tables,col):
 
     return col
 
+def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
+    flag1=0
+    flag2=0
+    flag=0
+    if(len(temp[0].split('('))>len(temp[0].split(')'))):
+        temp[0] = temp[0].split('(')
+        col_final = ""
+        for c in temp[0]:
+            if c !="":
+                col_final = c
+                break
+        temp[0] = col_final
+        temp[0] = temp[0].split(')')
+        for c in temp[0]:
+            if c !="":
+                col_final = c
+                break
+
+        temp[0]= col_final
+        flag=flag+1
+    elif(len(temp[0].split(')'))>len(temp[0].split('('))):
+        print "Error:- Improper condition writing"
+        exit(0)
+
+    try:
+        val1 = int(temp[0])
+    except:
+        col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
+        flag1=1
+        val1 = joined_tables[col1][i]
+
+    if(len(temp[1].split(')'))>len(temp[1].split('('))):
+        flag=flag-1
+        temp[1] = temp[1].split('(')
+        col_final = ""
+        for c in temp[1]:
+            if c !="":
+                col_final = c
+                break
+        temp[1] = col_final
+        temp[1] = temp[1].split(')')
+        for c in temp[1]:
+            if c !="":
+                col_final = c
+                break
+
+        temp[1]= col_final
+    elif(len(temp[1].split('('))>len(temp[1].split(')'))):
+        print "Error:- Improper condition writing"
+        exit(0)
+
+    try:
+        val2 = int(temp[1])
+    except:
+        col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
+        flag2=1
+        val2 = joined_tables[col2][i]
+
+    if func==">=":
+        val = int(val1) >= int(val2)
+    elif func=="<=":
+        val = int(val1) <= int(val2)
+    elif func=="==":
+        val = int(val1) == int(val2)
+        if(flag1==1 and flag2==1):
+            if(col1.split('.')[0]!=col2.split('.')[0]):
+                if col2 not in duplicate_out:
+                    duplicate_out.append(col2)
+    elif func=="!=":
+        val = int(val1) != int(val2)
+    elif func==">":
+        val = int(val1) > int(val2)
+    elif func=="<":
+        val = int(val1) < int(val2)
+    else:
+        print "Error:- Invalid Operation"
+        exit(0)
+
+    return val,flag,duplicate_out
 
 def apply_constraints(req,joined_tables,tinfo,tables):
     duplicate_out = []
@@ -267,6 +357,14 @@ def apply_constraints(req,joined_tables,tinfo,tables):
         count2 = 0
         ans = True
         val = True
+        list_val = []
+        list_count = []
+        st_oper = []
+        st_poi = -1
+        list_count.append(0)
+        list_val.append(ans)
+        poi2=0
+        flag=0
         for oper in list_oper:
             temp = oper
             func = ""
@@ -274,64 +372,103 @@ def apply_constraints(req,joined_tables,tinfo,tables):
                 if(len(oper.split(">="))==2):
                     temp = temp.split(">=")
                     func = ">="
-                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                    val = int(joined_tables[col1][i]) >= int(joined_tables[col2][i])
+                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 elif(len(oper.split("<="))==2):
                     temp = temp.split("<=")
                     func = "<="
-                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                    val = int(joined_tables[col1][i]) <= int(joined_tables[col2][i])
+                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 elif(len(oper.split("!="))==2):
                     temp = temp.split("!=")
                     func = "!="
-                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                    val = int(joined_tables[col1][i]) != int(joined_tables[col2][i])
+                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 else:
                     temp = temp.split("=")
                     func = "=="
-                    col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                    col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                    if(col1.split('.')[0]!=col2.split('.')):
-                        if col2 not in duplicate_out:
-                            duplicate_out.append(col2)
-                    val = int(joined_tables[col1][i]) == int(joined_tables[col2][i])
+                    val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
             elif(len(oper.split(">"))==2):
                 temp = temp.split(">")
                 func = ">"
-                col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                val = int(joined_tables[col1][i]) > int(joined_tables[col2][i])
+                val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
             elif(len(oper.split("<"))==2):
                 temp = temp.split("<")
                 func = "<"
-                col1 = extract_col(req,joined_tables,tinfo,tables,temp[0])
-                col2 = extract_col(req,joined_tables,tinfo,tables,temp[1])
-                val = int(joined_tables[col1][i]) < int(joined_tables[col2][i])
+                val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
             else:
                 print "Error:- Invalid Operation",temp
                 exit(0)
 
-            if(count==0):
-                ans = val
-                count=count+1
+            # if(flag==1):
+            #     poi2+=1
+            #     list_val.append(val)
+            #     list_count.append(0)
+            #     if count>0:
+            #         st_oper.append(list_words[count2])
+            #         st_poi=0
+            #         count2 = count2+1
+            #         count = count +1
+            #     else:
+            #         count = count + 1
+            # elif(flag==-1):
+            #     list_count[poi2]+=1
+            #     if list_words[count2] == "and":
+            #         list_val[poi2] = list_val[poi2] and val
+            #     elif list_words[count2]=="or":
+            #         list_val[poi2] = list_val[poi2] or val
+            #     else:
+            #         print "Error:- Invalid Operation",temp
+            #         exit(0)
+            #     count2 = count2 + 1
+            #     count = count + 1
+            #     if(st_poi>-1):
+            #         if(st_oper[st_poi]=="and"):
+            #             list_val[poi2-1] = list_val[poi2-1] and list_val[poi2]
+            #             poi2-=1
+            #             st_poi-=1
+            #         elif(st_oper[st_poi]=="or"):
+            #             list_val[poi2-1] = list_val[poi2-1] or list_val[poi2]
+            #             poi2 = poi2-1
+            #             st_poi = st_poi-1
+            #         else:
+            #             print "Error:- Invalid Operation"
+            #             exit(0)
+            #     else:
+            #         list_val[poi2-1] = list_val[poi2]
+            #         poi2 = poi2-1
+            # else:
+            #     if(list_words[count2] == "and"):
+            #         list_val[poi2] = list_val[poi2] and val
+            #     elif(list_words[count2] == "or"):
+            #         list_val[poi2] = list_val[poi2] or val
+            #     else:
+            #         print "Error:- Invalid Operation"
+            #         exit(0)
+            #     count2 = count2 +1 
+            #     count = count + 1
+
+
+
+
+
+            if(list_count[poi2]==0):
+                list_val[poi2]=val
+                list_count[poi2]=list_count[poi2]+1
+                count = count+1
             else:
                 if list_words[count2] == "and":
-                    ans = ans and val
+                    list_val[poi2] = list_val[poi2] and val
                 elif list_words[count2]=="or":
-                    ans = ans or val
+                    list_val[poi2] = list_val[poi2] or val
                 else:
                     print "Error:- Invalid Operation",temp
                     exit(0)
                 count2 = count2+1
                 count = count+1
         # print ans
-        if ans==True:
-            for key in joined_tables.keys():
-                project[key].append(joined_tables[key][i])
-            poi+=1
+        if poi2==0:
+            if list_val[poi2]==True:
+                for key in joined_tables.keys():
+                    project[key].append(joined_tables[key][i])
+                poi+=1
 
     # print list_oper
     # print list_words
@@ -347,7 +484,8 @@ def show_output(req,joined_tables,tinfo,tables):
     list_aggre['max']=[]
     list_aggre['min']=[]
     list_aggre['sum']=[]
-    list_aggre['average']=[]
+    list_aggre['avg']=[]
+    list_aggre['count']=[]
 
     flag_main = -1
     for col in cols:
@@ -358,37 +496,54 @@ def show_output(req,joined_tables,tinfo,tables):
             for table in tables:
                 for val in tinfo[table]:
                     list_out.append(table+'.'+val)
-        elif(len(col.split('max'))==2 or len(col.split('min'))==2 or len(col.split('sum'))==2 or len(col.split('average'))==2):
+        elif(len(col.lower().split('max'))==2 or len(col.lower().split('min'))==2 or len(col.lower().split('sum'))==2 or len(col.lower().split('avg'))==2 or len(col.lower().split('count'))==2):
             if(flag_main==0):
                 print "Error:- In Aggregated query, select list also contains non-aggregated columns"
                 exit(0)
 
-            if(len(col.split('max'))==2):
-                col = col.split('max')[1]
+            if(len(col.lower().split('max'))==2):
+                word = col.lower().split('max')[1]
+                word = col.lower().find(word)
+                col = col[word:]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['max'].append(col)
-            elif(len(col.split('min'))==2):
-                col = col.split('min')[1]
+            elif(len(col.lower().split('min'))==2):
+                word = col.lower().split('min')[1]
+                word = col.lower().find(word)
+                col = col[word:]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['min'].append(col)
-            elif(len(col.split('sum'))==2):
-                col = col.split('sum')[1]
+            elif(len(col.lower().split('sum'))==2):
+                word = col.lower().split('sum')[1]
+                word = col.lower().find(word)
+                col = col[word:]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['sum'].append(col)
-            elif(len(col.split('average'))==2):
-                col = col.split('average')[1]
+            elif(len(col.lower().split('avg'))==2):
+                word = col.lower().split('avg')[1]
+                word = col.lower().find(word)
+                col = col[word:]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
-                list_aggre['average'].append(col)
+                list_aggre['avg'].append(col)
+            elif(len(col.lower().split('count'))==2):
+                word = col.lower().split('count')[1]
+                word = col.lower().find(word)
+                col = col[word:]
+                col = extract_col(req,joined_tables,tinfo,tables,col)
+                list_out.append(col)
+                list_aggre['count'].append(col)                
             else:
                 print "Error:- Improper usage of Aggregate query"
                 exit(0)
             flag_main=1
-        elif(len(col.split('distinct'))==2):
-            col = col.split('distinct')[1]
+        elif(len(col.lower().split('distinct'))==2):
+            word = col.lower().split('distinct')[1]
+            word = col.lower().find(word)
+            col = col[word:]
             if(flag_main==1):
                 print "Error:- In Aggregated query, select list contains non-aggregated column -- ", col
                 exit(0)
