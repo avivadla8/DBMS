@@ -352,6 +352,7 @@ def apply_constraints(req,joined_tables,tinfo,tables):
         for val in tinfo[table]:
             project[table+'.'+val] = []
 
+    length = 1
     for i in range(0,length):
         count = 0
         count2 = 0
@@ -397,63 +398,20 @@ def apply_constraints(req,joined_tables,tinfo,tables):
                 print "Error:- Invalid Operation",temp
                 exit(0)
 
-            # if(flag==1):
-            #     poi2+=1
-            #     list_val.append(val)
-            #     list_count.append(0)
-            #     if count>0:
-            #         st_oper.append(list_words[count2])
-            #         st_poi=0
-            #         count2 = count2+1
-            #         count = count +1
-            #     else:
-            #         count = count + 1
-            # elif(flag==-1):
-            #     list_count[poi2]+=1
-            #     if list_words[count2] == "and":
-            #         list_val[poi2] = list_val[poi2] and val
-            #     elif list_words[count2]=="or":
-            #         list_val[poi2] = list_val[poi2] or val
-            #     else:
-            #         print "Error:- Invalid Operation",temp
-            #         exit(0)
-            #     count2 = count2 + 1
-            #     count = count + 1
-            #     if(st_poi>-1):
-            #         if(st_oper[st_poi]=="and"):
-            #             list_val[poi2-1] = list_val[poi2-1] and list_val[poi2]
-            #             poi2-=1
-            #             st_poi-=1
-            #         elif(st_oper[st_poi]=="or"):
-            #             list_val[poi2-1] = list_val[poi2-1] or list_val[poi2]
-            #             poi2 = poi2-1
-            #             st_poi = st_poi-1
-            #         else:
-            #             print "Error:- Invalid Operation"
-            #             exit(0)
-            #     else:
-            #         list_val[poi2-1] = list_val[poi2]
-            #         poi2 = poi2-1
-            # else:
-            #     if(list_words[count2] == "and"):
-            #         list_val[poi2] = list_val[poi2] and val
-            #     elif(list_words[count2] == "or"):
-            #         list_val[poi2] = list_val[poi2] or val
-            #     else:
-            #         print "Error:- Invalid Operation"
-            #         exit(0)
-            #     count2 = count2 +1 
-            #     count = count + 1
 
-
-
-
-
-            if(list_count[poi2]==0):
-                list_val[poi2]=val
-                list_count[poi2]=list_count[poi2]+1
-                count = count+1
-            else:
+            if(flag==1):
+                poi2+=1
+                list_val.append(val)
+                list_count.append(0)
+                if count>0:
+                    st_oper.append(list_words[count2])
+                    st_poi=0
+                    count2 = count2+1
+                    count = count +1
+                else:
+                    count = count + 1
+            elif(flag==-1):
+                list_count[poi2]+=1
                 if list_words[count2] == "and":
                     list_val[poi2] = list_val[poi2] and val
                 elif list_words[count2]=="or":
@@ -461,8 +419,62 @@ def apply_constraints(req,joined_tables,tinfo,tables):
                 else:
                     print "Error:- Invalid Operation",temp
                     exit(0)
-                count2 = count2+1
-                count = count+1
+                count2 = count2 + 1
+                count = count + 1
+                if(st_poi>-1):
+                    if(st_oper[st_poi]=="and"):
+                        list_val[poi2-1] = list_val[poi2-1] and list_val[poi2]
+                        poi2-=1
+                        st_poi-=1
+                    elif(st_oper[st_poi]=="or"):
+                        list_val[poi2-1] = list_val[poi2-1] or list_val[poi2]
+                        poi2 = poi2-1
+                        st_poi = st_poi-1
+                    else:
+                        print "Error:- Invalid Operation"
+                        exit(0)
+                    st_oper = st_oper[:-1]
+                    list_val = list_val[:-1]
+                else:
+                    list_val[poi2-1] = list_val[poi2]
+                    list_val = list_val[:-1]
+                    poi2 = poi2-1
+            else:
+                if(count>0):
+                    if(list_words[count2] == "and"):
+                        list_val[poi2] = list_val[poi2] and val
+                    elif(list_words[count2] == "or"):
+                        list_val[poi2] = list_val[poi2] or val
+                    else:
+                        print "Error:- Invalid Operation"
+                        exit(0)
+                    count2 = count2 +1
+                else:
+                    list_val[poi2] = val
+                count = count + 1
+
+
+            # print oper,flag
+            # print list_val
+            # print st_oper
+
+            ### below implementation is independent of brackets, from left to right
+            # if(list_count[poi2]==0):
+            #     list_val[poi2]=val
+            #     list_count[poi2]=list_count[poi2]+1
+            #     count = count+1
+            # else:
+            #     if list_words[count2] == "and":
+            #         list_val[poi2] = list_val[poi2] and val
+            #     elif list_words[count2]=="or":
+            #         list_val[poi2] = list_val[poi2] or val
+            #     else:
+            #         print "Error:- Invalid Operation",temp
+            #         exit(0)
+            #     count2 = count2+1
+            #     count = count+1
+            ###
+
         # print ans
         if poi2==0:
             if list_val[poi2]==True:
