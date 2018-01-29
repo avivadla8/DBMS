@@ -26,7 +26,7 @@ do
 		break
 	fi
 
-	if [[ $comm == "clear" ]]
+	if [[ $comm == "clear" || $comm == "clear;" ]]
 	then
 		eval $comm
 		continue
@@ -35,22 +35,33 @@ do
 	declare -a ARRAY
 	count=0
 
+	temp=""
 	for word in $comm;
 	do
 		ARRAY[$count]=$word
+		if [[ $count == 0 ]]
+		then
+			temp=$word
+		else
+			temp=''$temp' '$word''
+		fi
 		((count++))
 	done
-	if [[ $count -ge 3 ]]
-	then
-		if [[ ${ARRAY[0]} == 'python' &&  ${ARRAY[1]} == 'engine.py' ]]
-		then
-			eval $comm
-		else
-			echo 'Error :- Command should be of form :- python engine.py "statement"'
-		fi
+	# if [[ $count -ge 3 ]]
+	# then
+	# 	if [[ ${ARRAY[0]} == 'python' &&  ${ARRAY[1]} == 'engine.py' ]]
+	# 	then
+	# 		eval $comm
+	# 	else
+	# 		echo 'Error :- Command should be of form :- python engine.py "statement"'
+	# 	fi
 
-	else
-		echo 'Error :- Command should be of form :- python engine.py "statement"'
-	fi
+	# else
+	# 	echo 'Error :- Command should be of form :- python engine.py "statement"'
+	# fi
+	comm='python engine.py "'$temp'"' 
+	# echo $comm
+	eval $comm
+
 done
 set +f

@@ -299,7 +299,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
         val = int(val1) == int(val2)
         if(flag1==1 and flag2==1):
             if(col1.split('.')[0]!=col2.split('.')[0]):
-                if col2 not in duplicate_out:
+                if (col2 not in duplicate_out) and (col1 not in duplicate_out):
                     duplicate_out.append(col2)
     elif func=="!=":
         val = int(val1) != int(val2)
