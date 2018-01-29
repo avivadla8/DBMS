@@ -3,6 +3,7 @@ import numpy
 import sys
 import os
 import time
+import re
 
         # Enter the database folder
 database_folder = ''
@@ -173,6 +174,8 @@ def apply_aggregate(joined_tables,oper,val,length):
     for i in range(0,length):
         if i == 0:
             output = joined_tables[val][i]
+            if oper=='count':
+                output = 1
         else:
             if oper == 'min':
                 output = min(output,joined_tables[val][i])
@@ -235,6 +238,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
     flag2=0
     flag=0
     if(len(temp[0].split('('))>len(temp[0].split(')'))):
+        flag=flag+(len(temp[0].split('('))-len(temp[0].split(')')))
         temp[0] = temp[0].split('(')
         col_final = ""
         for c in temp[0]:
@@ -249,7 +253,6 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
                 break
 
         temp[0]= col_final
-        flag=flag+1
     elif(len(temp[0].split(')'))>len(temp[0].split('('))):
         print "Error:- Improper condition writing"
         exit(0)
@@ -262,7 +265,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
         val1 = joined_tables[col1][i]
 
     if(len(temp[1].split(')'))>len(temp[1].split('('))):
-        flag=flag-1
+        flag=flag-(len(temp[1].split(')'))-len(temp[1].split('(')))
         temp[1] = temp[1].split('(')
         col_final = ""
         for c in temp[1]:
@@ -288,6 +291,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
         flag2=1
         val2 = joined_tables[col2][i]
 
+    val = True
     if func==">=":
         val = int(val1) >= int(val2)
     elif func=="<=":
@@ -308,6 +312,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
         print "Error:- Invalid Operation"
         exit(0)
 
+
     return val,flag,duplicate_out
 
 def apply_constraints(req,joined_tables,tinfo,tables):
@@ -317,6 +322,9 @@ def apply_constraints(req,joined_tables,tinfo,tables):
 
 
     parts  = req["where"]
+    if len(parts.split('('))!= len(parts.split(')')):
+        print "Unbalanced Bracketing"
+        exit(0)
     list_oper = []
     list_words = []
     parts = parts.split("and")
@@ -349,7 +357,6 @@ def apply_constraints(req,joined_tables,tinfo,tables):
         for val in tinfo[table]:
             project[table+'.'+val] = []
 
-    length = 1
     for i in range(0,length):
         count = 0
         count2 = 0
@@ -370,15 +377,15 @@ def apply_constraints(req,joined_tables,tinfo,tables):
                 if(len(oper.split(">="))==2):
                     temp = temp.split(">=")
                     func = ">="
-                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
+                    val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 elif(len(oper.split("<="))==2):
                     temp = temp.split("<=")
                     func = "<="
-                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
+                    val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 elif(len(oper.split("!="))==2):
                     temp = temp.split("!=")
                     func = "!="
-                    val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
+                    val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
                 else:
                     temp = temp.split("=")
                     func = "=="
@@ -386,58 +393,79 @@ def apply_constraints(req,joined_tables,tinfo,tables):
             elif(len(oper.split(">"))==2):
                 temp = temp.split(">")
                 func = ">"
-                val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
+                val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
             elif(len(oper.split("<"))==2):
                 temp = temp.split("<")
                 func = "<"
-                val,flag = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
+                val,flag,duplicate_out = evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out)
             else:
                 print "Error:- Invalid Operation",temp
                 exit(0)
 
 
-            if(flag==1):
-                poi2+=1
-                list_val.append(val)
-                list_count.append(0)
-                if count>0:
-                    st_oper.append(list_words[count2])
-                    st_poi=0
-                    count2 = count2+1
-                    count = count +1
-                else:
-                    count = count + 1
-            elif(flag==-1):
-                list_count[poi2]+=1
-                if list_words[count2] == "and":
-                    list_val[poi2] = list_val[poi2] and val
-                elif list_words[count2]=="or":
-                    list_val[poi2] = list_val[poi2] or val
-                else:
-                    print "Error:- Invalid Operation",temp
-                    exit(0)
-                count2 = count2 + 1
-                count = count + 1
-                if(st_poi>-1):
-                    if(st_oper[st_poi]=="and"):
-                        list_val[poi2-1] = list_val[poi2-1] and list_val[poi2]
-                        poi2-=1
-                        st_poi-=1
-                    elif(st_oper[st_poi]=="or"):
-                        list_val[poi2-1] = list_val[poi2-1] or list_val[poi2]
-                        poi2 = poi2-1
-                        st_poi = st_poi-1
-                    else:
-                        print "Error:- Invalid Operation"
+            if(flag>=1):
+                while(flag>0):
+                    poi2 +=1
+                    list_val.append(True)
+                    list_count.append(0)
+                    flag-=1
+                list_val[poi2] = val
+                list_count[poi2]=1
+                if(count>0):
+                    if(count2>len(list_words)-1):
+                        print "Error:- Less number of and & or operations"
                         exit(0)
-                    st_oper = st_oper[:-1]
-                    list_val = list_val[:-1]
+                    st_oper.append(list_words[count2])
+                    st_poi+=1
+                    count2 = count2+1
+                count = count+1
+            elif(flag<=-1):
+                if(count2>len(list_words)-1):
+                    print "Error:- Less number of and & or operations"
+                    exit(0)
+                if(count>0):
+                    list_count[poi2]+=1
+                    if list_words[count2] == "and":
+                        list_val[poi2] = list_val[poi2] and val
+                    elif list_words[count2]=="or":
+                        list_val[poi2] = list_val[poi2] or val
+                    else:
+                        print "Error:- Invalid Operation",temp
+                        exit(0)
+                    count2 = count2 + 1
                 else:
-                    list_val[poi2-1] = list_val[poi2]
-                    list_val = list_val[:-1]
-                    poi2 = poi2-1
+                    print "Error:- In writing Paranthesis"
+                    exit(0)
+                count = count + 1
+
+                while(flag<0):
+                    flag+=1
+                    if(poi2==0):
+                        print "Error:- Invalid paranthesis writing"
+                        exit(0)
+                    if(st_poi>-1):
+                        if(st_oper[st_poi]=="and"):
+                            list_val[poi2-1] = list_val[poi2-1] and list_val[poi2]
+                            poi2-=1
+                            st_poi-=1
+                        elif(st_oper[st_poi]=="or"):
+                            list_val[poi2-1] = list_val[poi2-1] or list_val[poi2]
+                            poi2 = poi2-1
+                            st_poi = st_poi-1
+                        else:
+                            print "Error:- Invalid Operation"
+                            exit(0)
+                        st_oper = st_oper[:-1]
+                        list_val = list_val[:-1]
+                    else:
+                        list_val[poi2-1] = list_val[poi2]
+                        list_val = list_val[:-1]
+                        poi2 = poi2-1
             else:
                 if(count>0):
+                    if(count2>len(list_words)-1):
+                        print "Error:- Less number of and & or operations"
+                        exit(0)
                     if(list_words[count2] == "and"):
                         list_val[poi2] = list_val[poi2] and val
                     elif(list_words[count2] == "or"):
@@ -449,6 +477,8 @@ def apply_constraints(req,joined_tables,tinfo,tables):
                 else:
                     list_val[poi2] = val
                 count = count + 1
+
+            
 
 
             # print oper,flag
@@ -505,43 +535,33 @@ def show_output(req,joined_tables,tinfo,tables):
             for table in tables:
                 for val in tinfo[table]:
                     list_out.append(table+'.'+val)
-        elif(len(col.lower().split('max'))==2 or len(col.lower().split('min'))==2 or len(col.lower().split('sum'))==2 or len(col.lower().split('avg'))==2 or len(col.lower().split('count'))==2):
+        elif(len(col.split('max'))==2 or len(col.split('min'))==2 or len(col.split('sum'))==2 or len(col.split('avg'))==2 or len(col.split('count'))==2):
             if(flag_main==0):
                 print "Error:- In Aggregated query, select list also contains non-aggregated columns"
                 exit(0)
 
-            if(len(col.lower().split('max'))==2):
-                word = col.lower().split('max')[1]
-                word = col.lower().find(word)
-                col = col[word:]
+            if(len(col.split('max'))==2):
+                col = col.split('max')[1]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['max'].append(col)
-            elif(len(col.lower().split('min'))==2):
-                word = col.lower().split('min')[1]
-                word = col.lower().find(word)
-                col = col[word:]
+            elif(len(col.split('min'))==2):
+                col = col.split('min')[1]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['min'].append(col)
-            elif(len(col.lower().split('sum'))==2):
-                word = col.lower().split('sum')[1]
-                word = col.lower().find(word)
-                col = col[word:]
+            elif(len(col.split('sum'))==2):
+                col = col.split('sum')[1]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['sum'].append(col)
-            elif(len(col.lower().split('avg'))==2):
-                word = col.lower().split('avg')[1]
-                word = col.lower().find(word)
-                col = col[word:]
+            elif(len(col.split('avg'))==2):
+                col = col.split('avg')[1]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['avg'].append(col)
-            elif(len(col.lower().split('count'))==2):
-                word = col.lower().split('count')[1]
-                word = col.lower().find(word)
-                col = col[word:]
+            elif(len(col.split('count'))==2):
+                col = col.split('count')[1]
                 col = extract_col(req,joined_tables,tinfo,tables,col)
                 list_out.append(col)
                 list_aggre['count'].append(col)                
@@ -549,10 +569,8 @@ def show_output(req,joined_tables,tinfo,tables):
                 print "Error:- Improper usage of Aggregate query"
                 exit(0)
             flag_main=1
-        elif(len(col.lower().split('distinct'))==2):
-            word = col.lower().split('distinct')[1]
-            word = col.lower().find(word)
-            col = col[word:]
+        elif(len(col.split('distinct'))==2):
+            col = col.split('distinct')[1]
             if(flag_main==1):
                 print "Error:- In Aggregated query, select list contains non-aggregated column -- ", col
                 exit(0)
@@ -700,6 +718,18 @@ for query in queries:
     if query == "":
         continue
     start = time.time()
+    query = re.sub(r'SELECT', 'select', query, flags=re.IGNORECASE)
+    query = re.sub(r'WHERE', 'where', query, flags=re.IGNORECASE)
+    query = re.sub(r'FROM', 'from', query, flags=re.IGNORECASE)
+    query = re.sub(r'MAX', 'max', query, flags=re.IGNORECASE)
+    query = re.sub(r'MIN', 'min', query, flags=re.IGNORECASE)
+    query = re.sub(r'SUM', 'sum', query, flags=re.IGNORECASE)
+    query = re.sub(r'COUNT', 'count', query, flags=re.IGNORECASE)
+    query = re.sub(r'AVG', 'avg', query, flags=re.IGNORECASE)
+    query = re.sub(r'DISTINCT', 'distinct', query, flags=re.IGNORECASE)
+    query = re.sub(r'AND', 'and', query, flags=re.IGNORECASE)
+    query = re.sub(r'OR', 'or', query, flags=re.IGNORECASE)
+    # print query
     output = parse_query(query)
     process_query(output,tinfo)
     end = time.time()
