@@ -101,9 +101,6 @@ def parse_query(query):
 
     req["select"] = req["select"].split(',')
     req["from"] = req["from"].split(',')
-    # if "where" in req.keys():
-    #     req["where"] = req["where"].split('and')
-    #     req["where"] = req["where"].split('or')
 
     # print req
     return req
