@@ -187,7 +187,7 @@ def apply_aggregate(joined_tables,oper,val,length):
                 output = output + joined_tables[val][i]
             elif oper=='count':
                 output = output+1
-    if oper == 'avg':
+    if oper == 'avg' and length>0:
         output = (output*1.0)/length
         output = round(output,2)
 
@@ -713,25 +713,28 @@ if len(queries)==1 or queries[len(queries)-1]!="":
         # Load Metadata file
 
 tinfo = load_metadata(database_folder+'metadata.txt')
-
-for query in queries:
-    if query == "":
-        continue
-    start = time.time()
-    query = re.sub(r'SELECT', 'select', query, flags=re.IGNORECASE)
-    query = re.sub(r'WHERE', 'where', query, flags=re.IGNORECASE)
-    query = re.sub(r'FROM', 'from', query, flags=re.IGNORECASE)
-    query = re.sub(r'MAX', 'max', query, flags=re.IGNORECASE)
-    query = re.sub(r'MIN', 'min', query, flags=re.IGNORECASE)
-    query = re.sub(r'SUM', 'sum', query, flags=re.IGNORECASE)
-    query = re.sub(r'COUNT', 'count', query, flags=re.IGNORECASE)
-    query = re.sub(r'AVG', 'avg', query, flags=re.IGNORECASE)
-    query = re.sub(r'DISTINCT', 'distinct', query, flags=re.IGNORECASE)
-    query = re.sub(r'AND', 'and', query, flags=re.IGNORECASE)
-    query = re.sub(r'OR', 'or', query, flags=re.IGNORECASE)
-    # print query
-    output = parse_query(query)
-    process_query(output,tinfo)
-    end = time.time()
-    if(flag_print_time):
-        print "Time taken:- ",end-start,"\n"
+try:
+    for query in queries:
+        if query == "":
+            continue
+        start = time.time()
+        query = re.sub(r'SELECT', 'select', query, flags=re.IGNORECASE)
+        query = re.sub(r'WHERE', 'where', query, flags=re.IGNORECASE)
+        query = re.sub(r'FROM', 'from', query, flags=re.IGNORECASE)
+        query = re.sub(r'MAX', 'max', query, flags=re.IGNORECASE)
+        query = re.sub(r'MIN', 'min', query, flags=re.IGNORECASE)
+        query = re.sub(r'SUM', 'sum', query, flags=re.IGNORECASE)
+        query = re.sub(r'COUNT', 'count', query, flags=re.IGNORECASE)
+        query = re.sub(r'AVG', 'avg', query, flags=re.IGNORECASE)
+        query = re.sub(r'DISTINCT', 'distinct', query, flags=re.IGNORECASE)
+        query = re.sub(r'AND', 'and', query, flags=re.IGNORECASE)
+        query = re.sub(r'OR', 'or', query, flags=re.IGNORECASE)
+        # print query
+        output = parse_query(query)
+        process_query(output,tinfo)
+        end = time.time()
+        if(flag_print_time):
+            print "Time taken:- ",end-start,"\n"
+except:
+    print "Error:- Inappropriate query"
+    exit(0)
