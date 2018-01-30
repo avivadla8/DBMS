@@ -170,7 +170,7 @@ def combine_tables(data,tables,tinfo):
     return project
 
 def apply_aggregate(joined_tables,oper,val,length):
-    output = 0
+    output = float('nan')
     for i in range(0,length):
         if i == 0:
             output = joined_tables[val][i]
@@ -191,6 +191,8 @@ def apply_aggregate(joined_tables,oper,val,length):
         output = (output*1.0)/length
         output = round(output,2)
 
+    if oper=='count':
+        output = length
     return output
 
 def extract_col(req,joined_tables,tinfo,tables,col):
@@ -299,9 +301,20 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
     elif func=="==":
         val = int(val1) == int(val2)
         if(flag1==1 and flag2==1):
+            temp_flag=0
             if(col1.split('.')[0]!=col2.split('.')[0]):
-                if (col2 not in duplicate_out) and (col1 not in duplicate_out):
-                    duplicate_out.append(col2)
+                for key in duplicate_out.keys():
+                    if (col1 in duplicate_out[key]) or (col2 in duplicate_out[key]):
+                        temp_flag = 1
+                        if(col1 not in duplicate_out[key]):
+                            duplicate_out[key].append(col1)
+                        if(col2 not in duplicate_out[key]):
+                            duplicate_out[key].append(col2)
+                        break
+                if temp_flag==0:
+                    duplicate_out[col1] = []
+                    duplicate_out[col1].append(col1)
+                    duplicate_out[col1].append(col2)
     elif func=="!=":
         val = int(val1) != int(val2)
     elif func==">":
@@ -316,7 +329,7 @@ def evaluate(req,joined_tables,tinfo,tables,temp,func,i,duplicate_out):
     return val,flag,duplicate_out
 
 def apply_constraints(req,joined_tables,tinfo,tables):
-    duplicate_out = []
+    duplicate_out = {}
     if "where" not in req.keys():
         return joined_tables,duplicate_out
 
@@ -600,9 +613,23 @@ def show_output(req,joined_tables,tinfo,tables):
 
     joined_tables,duplicate_out = apply_constraints(req,joined_tables,tinfo,tables)
 
-    for col in duplicate_out:
-        while col in list_out:
-            list_out.remove(col)
+    for key in duplicate_out.keys():
+        temp_flag = 0
+        actual = ""
+        for table in tables:
+            for col2 in tinfo[table]:
+                if (table+'.'+col2) in duplicate_out[key]:
+                    actual = (table+'.'+col2)
+                    temp_flag = 1
+                    break
+            if temp_flag==1:
+                break
+
+        for col in duplicate_out[key]:
+            if col==actual:
+                continue
+            while col in list_out:
+                list_out.remove(col)
     # print joined_tables
 
     if flag_main==0 or flag_main==2:

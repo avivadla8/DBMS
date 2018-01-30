@@ -18,3 +18,8 @@
 * Aggregrate Functions: simple aggregrate functions like sum,avg,min,max,count.
 * Select/project with distinct from one table​ : ​ select distinct col1, col2 from table_name;
 * where conditions are allowed.
+
+## Improvements:
+
+* solving queries involving sum(distint(A))
+* adding group by, limit, having methods
