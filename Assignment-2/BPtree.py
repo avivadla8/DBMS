@@ -218,7 +218,7 @@ class Node:
 				i = temp1
 				poi = 0
 				while(i<=main_node.n-1):
-					if main_node.overflow and main_node.extra < main_node.keys[i]:
+					if main_node.overflow and (main_node.extra < main_node.keys[i]):
 						new_node.keys[poi] = main_node.extra
 						main_node.extra = None
 						main_node.overflow = False
@@ -290,7 +290,7 @@ class Node:
 					main_node.pointers[i+1] = None
 					i+=1
 					while(i<=main_node.n-1):
-						if main_node.overflow and main_node.extra < main_node.keys[i]:
+						if main_node.overflow and (main_node.extra < main_node.keys[i]):
 							new_node.keys[poi] = main_node.extra
 							new_node.pointers[poi+1] = main_node.extra_pointer
 							main_node.extra = None
