@@ -41,8 +41,8 @@ class linear_hash:
 		temp = self.hash_list[index]
 		temp2 = self.hash_list[self.max]
 
+		poi = 0
 		for i in range(0,temp.count):
-			poi = 0
 			val = temp.list[i] % int(pow(2,self.n_bits))
 			if val == self.max:
 				temp2.insert(temp.list[i])
@@ -52,7 +52,7 @@ class linear_hash:
 
 		temp.count = poi
 
-		if overflow_flag == True:
+		if temp.overflow_flag == True:
 			old_list = temp.overflow
 			temp.overflow = []
 			temp.overflow_flag = False

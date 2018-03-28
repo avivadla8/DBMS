@@ -236,8 +236,6 @@ class Node:
 			val_node = new_node.keys[0]
 			poi_node = new_node
 		else:
-			# print(main_node.keys)
-			# print(temp1)
 			if main_node.extra < main_node.keys[temp1-1]:
 				i = temp1-1
 				poi= 0
@@ -362,22 +360,3 @@ if __name__ == "__main__":
 		elif word[0] == "RANGE":
 			root.range_count(int(word[1]),int(word[2]))
 
-
-
-	# root = BPtree(3)
-	# root.insert(10)
-	# root.insert(12)
-	# root.insert(123)
-	# root.insert(13)
-	# root.insert(123)
-	# root.insert(123)
-	# root.insert(1243)
-	# root.insert(1241)
-	# root.insert(1244)
-	# root.insert(1452)
-	# root.traverse()
-	# root.insert(5413)
-	# root.traverse()
-	# root.find(123)
-	# root.count(123)
-	# root.range_count(12,124)
