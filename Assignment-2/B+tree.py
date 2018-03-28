@@ -114,7 +114,8 @@ class Node:
 			if over_flag:
 				return count_val
 			else:
-				count_val += self.pointers[self.n].count(val)
+				if self.pointers[self.n] != None:
+					count_val += self.pointers[self.n].count(val)
 				return count_val
 		else:
 			ptr = None
@@ -144,7 +145,8 @@ class Node:
 			if over_flag:
 				return count_val
 			else:
-				count_val += self.pointers[self.n].range_count(val1,val2)
+				if self.pointers[self.n] != None:
+					count_val += self.pointers[self.n].range_count(val1,val2)
 				return count_val
 		else:
 			ptr = None
@@ -203,6 +205,7 @@ class Node:
 				while(i<=main_node.n-1):
 					new_node.keys[i-(temp1-1)] = main_node.keys[i]
 					main_node.keys[i] = None
+					i+=1
 
 				i = temp1-2
 				while(i>=0 and main_node.keys[i]>main_node.extra):
@@ -341,20 +344,40 @@ class Node:
 
 
 if __name__ == "__main__":
-	root = BPtree(3)
-	root.insert(10)
-	root.insert(12)
-	root.insert(123)
-	root.insert(13)
-	root.insert(123)
-	root.insert(123)
-	root.insert(1243)
-	root.insert(1241)
-	root.insert(1244)
-	root.insert(1452)
-	root.traverse()
-	root.insert(5413)
-	root.traverse()
-	root.find(123)
-	root.count(123)
-	root.range_count(12,124)
+	filename = sys.argv[1]
+	M = sys.argv[2]
+	B = sys.argv[3]
+	n = int(floor((int(B)-8)/12.0))
+	root = BPtree(n)
+	f = open(filename,'r')
+	lines = f.readlines()
+	for line in lines:
+		word = line.split(' ')
+		if word[0]=="INSERT":
+			root.insert(int(word[1]))
+		elif word[0] == "FIND":
+			root.find(int(word[1]))
+		elif word[0] == "COUNT":
+			root.count(int(word[1]))
+		elif word[0] == "RANGE":
+			root.range_count(int(word[1]),int(word[2]))
+
+
+
+	# root = BPtree(3)
+	# root.insert(10)
+	# root.insert(12)
+	# root.insert(123)
+	# root.insert(13)
+	# root.insert(123)
+	# root.insert(123)
+	# root.insert(1243)
+	# root.insert(1241)
+	# root.insert(1244)
+	# root.insert(1452)
+	# root.traverse()
+	# root.insert(5413)
+	# root.traverse()
+	# root.find(123)
+	# root.count(123)
+	# root.range_count(12,124)
